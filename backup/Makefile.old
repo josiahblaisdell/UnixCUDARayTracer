@@ -1,0 +1,36 @@
+HOST_COMPILER  = g++
+NVCC           = nvcc -ccbin $(HOST_COMPILER)
+
+# select one of these for Debug vs. Release
+NVCC_DBG       = -g -G
+#NVCC_DBG       =
+
+NVCCFLAGS      = $(NVCC_DBG) -m64
+GENCODE_FLAGS  = -gencode arch=compute_35,code=sm_35
+
+SRCS = main.cu vec3.cu RayTracer.cu
+INCS = vec3.h RayTracer.h Ray.h
+
+cudart: cudart.o 
+	$(NVCC) $(NVCCFLAGS) $(GENCODE_FLAGS) -o cudart cudart.o
+
+cudart.o: $(SRCS) $(INCS)
+	$(NVCC) $(NVCCFLAGS) $(GENCODE_FLAGS) -o cudart.o -c main.cu
+
+out.ppm: cudart
+	rm -f out.ppm
+	./cudart
+
+out.jpg: out.ppm
+	rm -f out.jpg
+	ppmtojpeg out.ppm > out.jpg
+
+profile_basic: cudart
+	nvprof ./cudart
+
+# use nvprof --query-metrics
+profile_metrics: cudart
+	nvprof --metrics achieved_occupancy,inst_executed,inst_fp_32,inst_fp_64,inst_integer ./cudart
+
+clean:
+	rm -f cudart cudart.o out.ppm out.jpg
